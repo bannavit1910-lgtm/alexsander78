@@ -230,3 +230,36 @@ tr:last-child td{border-bottom:none;}
   .admin-side a{white-space:nowrap;}
   .stat-cards{grid-template-columns:repeat(2,1fr);}
 }
+
+/* ตัวเลือกจำนวนสินค้า (+ / -) */
+.qty-stepper{display:flex; align-items:stretch; gap:0; margin-bottom:10px; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--panel-2);}
+.qty-stepper .qty-btn{
+  background:transparent; border:none; color:var(--text); font-size:16px; font-weight:700;
+  width:34px; cursor:pointer; line-height:1;
+}
+.qty-stepper .qty-btn:hover{background:rgba(255,255,255,0.06); color:var(--rare);}
+.qty-stepper .qty-input{
+  flex:1; text-align:center; background:transparent; border:none; border-left:1px solid var(--line); border-right:1px solid var(--line);
+  color:var(--text); font-family:inherit; font-size:13px; font-weight:600; outline:none; -moz-appearance:textfield;
+}
+.qty-stepper .qty-input::-webkit-outer-spin-button,
+.qty-stepper .qty-input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+
+/* ป็อปอัพยืนยันการซื้อ */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(10,11,16,0.65); display:none;
+  align-items:center; justify-content:center; z-index:1000; padding:20px;
+}
+.modal-overlay.open{display:flex;}
+.modal-box{
+  background:var(--panel); border:1px solid var(--line); border-radius:14px;
+  padding:24px; max-width:380px; width:100%;
+}
+.modal-box h3{margin:0 0 16px; font-size:16px;}
+.modal-row{display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;}
+.modal-row .modal-label{color:var(--muted);}
+.modal-row .modal-value{font-weight:600; text-align:right;}
+.modal-row-total{border-bottom:none; padding-top:12px;}
+.modal-total{color:var(--rare); font-size:18px;}
+.modal-actions{display:flex; gap:10px; margin-top:20px;}
+.modal-actions .btn{flex:1;}

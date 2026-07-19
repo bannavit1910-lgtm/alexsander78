@@ -37,11 +37,21 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ซื้อสินค้า: หักยอดคงเหลือของผู้ใช้ แล้วสร้างรายการคำสั่งซื้อ
+// ซื้อสินค้า: หักยอดคงเหลือของผู้ใช้ แล้วสร้างรายการคำสั่งซื้อ (รองรับการซื้อหลายจำนวน)
 router.post('/buy/:id', requireLogin, async (req, res) => {
   try {
     const productId = req.params.id;
-    
+
+    // จำนวนที่ต้องการซื้อ (อย่างน้อย 1 ชิ้น)
+    let quantity = parseInt(req.body.quantity, 10);
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      quantity = 1;
+    }
+    const MAX_QTY_PER_ORDER = 20;
+    if (quantity > MAX_QTY_PER_ORDER) {
+      quantity = MAX_QTY_PER_ORDER;
+    }
+
     // ดึงข้อมูลสินค้า
     const product = await Product.findById(productId);
     if (!product) {
@@ -53,38 +63,44 @@ router.post('/buy/:id', requireLogin, async (req, res) => {
 
     // ดึงข้อมูลผู้ใช้
     const user = await User.findById(req.session.user.id);
-    const finalPrice = Math.round(product.price * (1 - product.discount_percent / 100));
+    const unitPrice = Math.round(product.price * (1 - product.discount_percent / 100));
+    const totalPrice = unitPrice * quantity;
 
-    if (user.balance < finalPrice) {
+    if (user.balance < totalPrice) {
       return res.status(400).render('error', {
-        message: `ยอดเงินคงเหลือไม่พอ (คงเหลือ ฿${(user.balance / 100).toFixed(2)}, ราคาสินค้า ฿${(finalPrice / 100).toFixed(2)}) กรุณาเติมเงินก่อนทำรายการ`,
+        message: `ยอดเงินคงเหลือไม่พอ (คงเหลือ ฿${(user.balance / 100).toFixed(2)}, ยอดที่ต้องชำระ ฿${(totalPrice / 100).toFixed(2)}) กรุณาเติมเงินก่อนทำรายการ`,
       });
     }
 
-    // ดึงไอดี/สต็อกที่ยังว่างอยู่ 1 รายการ (เก่าสุดก่อน)
-    const item = await StockItem.findOne({ product_id: product._id, status: 'available' }).sort({ createdAt: 1 });
-    
-    if (!item) {
-      return res.status(400).render('error', { message: 'สินค้าหมดสต็อกแล้ว (ไม่มีไอดีคงเหลือให้ส่ง) กรุณาติดต่อแอดมินหรือรอเติมสต็อก' });
+    // ดึงไอดี/สต็อกที่ยังว่างอยู่ตามจำนวนที่ต้องการ (เก่าสุดก่อน)
+    const items = await StockItem.find({ product_id: product._id, status: 'available' })
+      .sort({ createdAt: 1 })
+      .limit(quantity);
+
+    if (items.length < quantity) {
+      return res.status(400).render('error', {
+        message: `สต็อกไม่พอสำหรับจำนวนที่ต้องการ (เหลือ ${items.length} รายการ) กรุณาลดจำนวนหรือรอเติมสต็อก`,
+      });
     }
 
     // หักเงินผู้ใช้
-    user.balance -= finalPrice;
+    user.balance -= totalPrice;
     await user.save();
 
-    // สร้าง Order
-    const newOrder = await Order.create({
-      user_id: user._id,
-      product_id: product._id,
-      price_paid: finalPrice,
-      status: 'completed',
-      delivered_content: item.content
-    });
+    // สร้าง Order และอัปเดตสถานะ StockItem ทีละรายการ
+    for (const item of items) {
+      const newOrder = await Order.create({
+        user_id: user._id,
+        product_id: product._id,
+        price_paid: unitPrice,
+        status: 'completed',
+        delivered_content: item.content
+      });
 
-    // อัปเดตสถานะ StockItem ว่าขายแล้ว
-    item.status = 'sold';
-    item.order_id = newOrder._id;
-    await item.save();
+      item.status = 'sold';
+      item.order_id = newOrder._id;
+      await item.save();
+    }
 
     // อัปเดตจำนวนสต็อกรวมของสินค้า
     const availableStock = await StockItem.countDocuments({ product_id: product._id, status: 'available' });

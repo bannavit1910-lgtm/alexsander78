@@ -130,9 +130,21 @@
           </div>
           <div class="stock-note"><%= p.stock > 0 ? `เหลือ ${p.stock} รายการ` : 'สินค้าหมด' %></div>
           <% if (currentUser) { %>
-            <form method="POST" action="/buy/<%= p.id %>">
-              <button class="btn btn-primary btn-block" type="submit" <%= p.stock <= 0 ? 'disabled' : '' %>>ซื้อสินค้านี้</button>
-            </form>
+            <% const unitPriceBaht = ((p.price * (100 - p.discount_percent) / 100) / 100); %>
+            <div class="qty-stepper" data-max="<%= p.stock %>">
+              <button type="button" class="qty-btn qty-minus" aria-label="ลดจำนวน">−</button>
+              <input type="number" class="qty-input" value="1" min="1" max="<%= p.stock %>" inputmode="numeric">
+              <button type="button" class="qty-btn qty-plus" aria-label="เพิ่มจำนวน">+</button>
+            </div>
+            <button
+              type="button"
+              class="btn btn-primary btn-block btn-buy-open"
+              <%= p.stock <= 0 ? 'disabled' : '' %>
+              data-product-id="<%= p.id %>"
+              data-product-title="<%= p.title %>"
+              data-unit-price="<%= unitPriceBaht.toFixed(2) %>"
+              data-stock="<%= p.stock %>"
+            >ซื้อสินค้านี้</button>
           <% } else { %>
             <a class="btn btn-ghost btn-block" href="/login">เข้าสู่ระบบเพื่อซื้อ</a>
           <% } %>
@@ -141,5 +153,107 @@
     <% }) %>
   </div>
 </div>
+
+<!-- ป็อปอัพยืนยันการซื้อสินค้า -->
+<div class="modal-overlay" id="buyModalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="buyModalTitle">
+    <h3 id="buyModalTitle">ยืนยันการสั่งซื้อ</h3>
+    <div class="modal-row">
+      <span class="modal-label">สินค้า</span>
+      <span class="modal-value" id="buyModalProductName">-</span>
+    </div>
+    <div class="modal-row">
+      <span class="modal-label">จำนวน</span>
+      <span class="modal-value" id="buyModalQty">-</span>
+    </div>
+    <div class="modal-row modal-row-total">
+      <span class="modal-label">ยอดชำระทั้งหมด</span>
+      <span class="modal-value modal-total" id="buyModalTotal">฿0.00</span>
+    </div>
+    <form method="POST" id="buyModalForm" action="">
+      <input type="hidden" name="quantity" id="buyModalQtyInput" value="1">
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="buyModalCancel">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary">ยืนยันการซื้อ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ตัวควบคุมจำนวนสินค้า (ปุ่ม + / -) ในแต่ละการ์ดสินค้า
+  document.querySelectorAll('.qty-stepper').forEach(function (stepper) {
+    var input = stepper.querySelector('.qty-input');
+    var minusBtn = stepper.querySelector('.qty-minus');
+    var plusBtn = stepper.querySelector('.qty-plus');
+    var max = parseInt(stepper.dataset.max, 10) || 1;
+
+    function clamp() {
+      var val = parseInt(input.value, 10);
+      if (!Number.isInteger(val) || val < 1) val = 1;
+      if (val > max) val = max;
+      input.value = val;
+    }
+
+    minusBtn.addEventListener('click', function () {
+      var val = parseInt(input.value, 10) || 1;
+      input.value = Math.max(1, val - 1);
+    });
+
+    plusBtn.addEventListener('click', function () {
+      var val = parseInt(input.value, 10) || 1;
+      input.value = Math.min(max, val + 1);
+    });
+
+    input.addEventListener('change', clamp);
+    input.addEventListener('blur', clamp);
+  });
+
+  // ป็อปอัพยืนยันการซื้อ
+  var overlay = document.getElementById('buyModalOverlay');
+  var form = document.getElementById('buyModalForm');
+  var qtyInputHidden = document.getElementById('buyModalQtyInput');
+  var nameEl = document.getElementById('buyModalProductName');
+  var qtyEl = document.getElementById('buyModalQty');
+  var totalEl = document.getElementById('buyModalTotal');
+  var cancelBtn = document.getElementById('buyModalCancel');
+
+  function openModal(btn) {
+    var card = btn.closest('.card');
+    var qtyInput = card.querySelector('.qty-input');
+    var qty = parseInt(qtyInput.value, 10) || 1;
+    var unitPrice = parseFloat(btn.dataset.unitPrice) || 0;
+    var productId = btn.dataset.productId;
+    var productTitle = btn.dataset.productTitle;
+
+    nameEl.textContent = productTitle;
+    qtyEl.textContent = qty + ' ชิ้น';
+    totalEl.textContent = '฿' + (unitPrice * qty).toFixed(2);
+    qtyInputHidden.value = qty;
+    form.action = '/buy/' + productId;
+
+    overlay.classList.add('open');
+  }
+
+  function closeModal() {
+    overlay.classList.remove('open');
+  }
+
+  document.querySelectorAll('.btn-buy-open').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      openModal(btn);
+    });
+  });
+
+  cancelBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) closeModal();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeModal();
+  });
+})();
+</script>
 </body>
 </html>

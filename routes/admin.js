@@ -73,14 +73,37 @@ router.get('/products/new', (req, res) => {
   res.render('admin/product-form', { product: null, error: null });
 });
 
-router.post('/products/new', upload.single('image'), async (req, res) => {
-  const { title, price, ...body } = req.body;
-  const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
-  const product = await Product.create({ 
-    ...body, title, price: Math.round(parseFloat(price) * 100), image_path: imagePath 
+router.post('/products/new', (req, res) => {
+  upload.single('image')(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      return res.render('admin/product-form', {
+        product: null,
+        error: uploadErr.message || 'อัปโหลดรูปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+      });
+    }
+    try {
+      const { title, price, ...body } = req.body;
+      const priceSatang = Math.round(parseFloat(price) * 100);
+      if (!title || !title.trim()) {
+        throw new Error('กรุณากรอกชื่อสินค้า');
+      }
+      if (!Number.isFinite(priceSatang) || priceSatang < 0) {
+        throw new Error('กรุณากรอกราคาเป็นตัวเลขที่ถูกต้อง');
+      }
+      const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
+      const product = await Product.create({
+        ...body, title, price: priceSatang, image_path: imagePath,
+      });
+      await logActivity(req.session.user.id, 'สร้างสินค้าใหม่', title);
+      res.redirect(`/admin/products/${product._id}/stock`);
+    } catch (err) {
+      console.error('Create product error:', err);
+      res.render('admin/product-form', {
+        product: null,
+        error: err.message || 'เพิ่มสินค้าไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+      });
+    }
   });
-  await logActivity(req.session.user.id, 'สร้างสินค้าใหม่', title);
-  res.redirect(`/admin/products/${product._id}/stock`);
 });
 
 router.get('/products/:id/edit', async (req, res) => {
@@ -91,32 +114,60 @@ router.get('/products/:id/edit', async (req, res) => {
   res.render('admin/product-form', { product, error: null });
 });
 
-router.post('/products/:id/edit', upload.single('image'), async (req, res) => {
-  const product = await Product.findById(req.params.id);
-  if (req.file && product.image_path) {
-    fs.unlink(path.join(__dirname, '..', 'public', product.image_path), () => {});
-  }
-  await Product.findByIdAndUpdate(req.params.id, { 
-    ...req.body, price: Math.round(parseFloat(req.body.price) * 100),
-    image_path: req.file ? `/uploads/${req.file.filename}` : product.image_path 
+router.post('/products/:id/edit', (req, res) => {
+  upload.single('image')(req, res, async (uploadErr) => {
+    const currentProduct = await Product.findById(req.params.id);
+    if (uploadErr) {
+      return res.render('admin/product-form', {
+        product: currentProduct,
+        error: uploadErr.message || 'อัปโหลดรูปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+      });
+    }
+    try {
+      if (!currentProduct) {
+        return res.status(404).render('error', { message: 'ไม่พบสินค้านี้' });
+      }
+      const priceSatang = Math.round(parseFloat(req.body.price) * 100);
+      if (!Number.isFinite(priceSatang) || priceSatang < 0) {
+        throw new Error('กรุณากรอกราคาเป็นตัวเลขที่ถูกต้อง');
+      }
+      if (req.file && currentProduct.image_path) {
+        fs.unlink(path.join(__dirname, '..', 'public', currentProduct.image_path), () => {});
+      }
+      await Product.findByIdAndUpdate(req.params.id, {
+        ...req.body, price: priceSatang,
+        image_path: req.file ? `/uploads/${req.file.filename}` : currentProduct.image_path,
+      });
+      await logActivity(req.session.user.id, 'แก้ไขสินค้า', req.body.title);
+      res.redirect('/admin/products');
+    } catch (err) {
+      console.error('Edit product error:', err);
+      res.render('admin/product-form', {
+        product: currentProduct,
+        error: err.message || 'แก้ไขสินค้าไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+      });
+    }
   });
-  await logActivity(req.session.user.id, 'แก้ไขสินค้า', req.body.title);
-  res.redirect('/admin/products');
 });
 
 router.post('/products/:id/delete', async (req, res) => {
-  const product = await Product.findById(req.params.id);
-  if (!product) {
-    return res.redirect('/admin/products');
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.redirect('/admin/products');
+    }
+    // ลบเฉพาะไอดีที่ยังไม่ได้ขาย (available) ส่วนที่ขายไปแล้วเก็บไว้เพื่อประวัติคำสั่งซื้อ
+    await StockItem.deleteMany({ product_id: product._id, status: 'available' });
+    if (product.image_path) {
+      fs.unlink(path.join(__dirname, '..', 'public', product.image_path), () => {});
+    }
+    await Product.findByIdAndDelete(req.params.id);
+    await logActivity(req.session.user.id, 'ลบสินค้า', product.title);
+    res.redirect('/admin/products');
+  } catch (err) {
+    console.error('Delete product error:', err);
+    res.status(500).render('error', { message: 'ลบสินค้าไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
   }
-  // ลบเฉพาะไอดีที่ยังไม่ได้ขาย (available) ส่วนที่ขายไปแล้วเก็บไว้เพื่อประวัติคำสั่งซื้อ
-  await StockItem.deleteMany({ product_id: product._id, status: 'available' });
-  if (product.image_path) {
-    fs.unlink(path.join(__dirname, '..', 'public', product.image_path), () => {});
-  }
-  await Product.findByIdAndDelete(req.params.id);
-  await logActivity(req.session.user.id, 'ลบสินค้า', product.title);
-  res.redirect('/admin/products');
 });
 
 // ---------- Stock Management ----------
