@@ -15,6 +15,9 @@ const AdminLog = require('../models/AdminLog');
 const router = express.Router();
 router.use(requireAdmin);
 
+// จำนวนไอดีสูงสุดที่ยอมให้เติมสต็อกต่อสินค้า 1 รายการ (นับเฉพาะที่ยังพร้อมขาย)
+const MAX_STOCK_PER_PRODUCT = 500;
+
 async function logActivity(adminId, action, detail) {
   await AdminLog.create({ admin_id: adminId, action, detail });
 }
@@ -172,21 +175,90 @@ router.post('/products/:id/delete', async (req, res) => {
 
 // ---------- Stock Management ----------
 router.get('/products/:id/stock', async (req, res) => {
-  const product = await Product.findById(req.params.id);
-  const items = await StockItem.find({ product_id: product._id }).populate('order_id');
-  res.render('admin/product-stock', { product, items });
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).render('error', { message: 'ไม่พบสินค้านี้' });
+    }
+    const items = await StockItem.find({ product_id: product._id })
+      .sort({ createdAt: -1 })
+      .populate('order_id');
+
+    const availableCount = items.filter(i => i.status === 'available').length;
+    const soldCount = items.filter(i => i.status !== 'available').length;
+
+    res.render('admin/product-stock', {
+      product,
+      items,
+      availableCount,
+      soldCount,
+      maxStock: MAX_STOCK_PER_PRODUCT,
+      error: null,
+    });
+  } catch (err) {
+    console.error('Load stock page error:', err);
+    res.status(500).render('error', { message: 'โหลดหน้าจัดการสต็อกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+  }
 });
 
 router.post('/products/:id/stock/add', async (req, res) => {
-  const lines = req.body.items.split('\n').map(l => l.trim()).filter(l => l);
-  const docs = lines.map(line => ({ product_id: req.params.id, content: line }));
-  await StockItem.insertMany(docs);
-  
-  // อัปเดตจำนวนสต็อก
-  const count = await StockItem.countDocuments({ product_id: req.params.id, status: 'available' });
-  await Product.findByIdAndUpdate(req.params.id, { stock: count });
-  
-  res.redirect(`/admin/products/${req.params.id}/stock`);
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).render('error', { message: 'ไม่พบสินค้านี้' });
+    }
+
+    const lines = (req.body.items || '').split('\n').map(l => l.trim()).filter(l => l);
+    const currentAvailable = await StockItem.countDocuments({ product_id: product._id, status: 'available' });
+
+    if (lines.length === 0) {
+      const items = await StockItem.find({ product_id: product._id }).sort({ createdAt: -1 }).populate('order_id');
+      const soldCount = items.filter(i => i.status !== 'available').length;
+      return res.status(400).render('admin/product-stock', {
+        product, items, availableCount: currentAvailable, soldCount,
+        maxStock: MAX_STOCK_PER_PRODUCT, error: 'กรุณาวางไอดีอย่างน้อย 1 รายการ',
+      });
+    }
+
+    if (currentAvailable + lines.length > MAX_STOCK_PER_PRODUCT) {
+      const items = await StockItem.find({ product_id: product._id }).sort({ createdAt: -1 }).populate('order_id');
+      const soldCount = items.filter(i => i.status !== 'available').length;
+      return res.status(400).render('admin/product-stock', {
+        product, items, availableCount: currentAvailable, soldCount,
+        maxStock: MAX_STOCK_PER_PRODUCT,
+        error: `เพิ่มได้อีกไม่เกิน ${Math.max(0, MAX_STOCK_PER_PRODUCT - currentAvailable)} รายการ (เกินขีดจำกัดสต็อกสูงสุด)`,
+      });
+    }
+
+    const docs = lines.map(line => ({ product_id: product._id, content: line }));
+    await StockItem.insertMany(docs);
+
+    // อัปเดตจำนวนสต็อก
+    const count = await StockItem.countDocuments({ product_id: product._id, status: 'available' });
+    await Product.findByIdAndUpdate(product._id, { stock: count });
+    await logActivity(req.session.user.id, 'เติมสต็อก', `${product.title} (+${lines.length} รายการ)`);
+
+    res.redirect(`/admin/products/${product._id}/stock`);
+  } catch (err) {
+    console.error('Add stock error:', err);
+    res.status(500).render('error', { message: 'เติมสต็อกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+  }
+});
+
+router.post('/products/:id/stock/:itemId/delete', async (req, res) => {
+  try {
+    const item = await StockItem.findOne({ _id: req.params.itemId, product_id: req.params.id });
+    if (item && item.status === 'available') {
+      await StockItem.findByIdAndDelete(item._id);
+      const count = await StockItem.countDocuments({ product_id: req.params.id, status: 'available' });
+      await Product.findByIdAndUpdate(req.params.id, { stock: count });
+      await logActivity(req.session.user.id, 'ลบไอดีออกจากสต็อก', item.content);
+    }
+    res.redirect(`/admin/products/${req.params.id}/stock`);
+  } catch (err) {
+    console.error('Delete stock item error:', err);
+    res.status(500).render('error', { message: 'ลบไอดีไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+  }
 });
 
 // ---------- Members & Orders & Topups ----------

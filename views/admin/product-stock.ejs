@@ -62,7 +62,7 @@ username3:password3"></textarea>
                 <td style="font-family:monospace; font-size:12px;"><%= i.content %></td>
                 <td><span class="tag <%= i.status === 'available' ? 'completed' : 'pending' %>"><%= i.status === 'available' ? 'พร้อมขาย' : 'ขายแล้ว' %></span></td>
                 <td><%= i.sold_to || '-' %></td>
-                <td><%= i.created_at %></td>
+                <td><%= i.createdAt ? new Date(i.createdAt).toLocaleDateString('th-TH') : '-' %></td>
                 <td>
                   <% if (i.status === 'available') { %>
                     <form method="POST" action="/admin/products/<%= product.id %>/stock/<%= i.id %>/delete" onsubmit="return confirm('ลบไอดีนี้ออกจากสต็อก?');">
