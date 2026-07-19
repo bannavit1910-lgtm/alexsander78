@@ -21,8 +21,16 @@ router.get('/', async (req, res) => {
     
     // ดึงหมวดหมู่ทั้งหมดแบบไม่ซ้ำ
     const categories = await Product.distinct('category');
-    
-    res.render('index', { products, categories, activeCategory: category || 'ทั้งหมด' });
+
+    // นับจำนวนสินค้าต่อหมวดหมู่ (ไม่ขึ้นกับตัวกรองที่เลือกอยู่) ใช้ทำแบนเนอร์แนะนำหมวดหมู่ด้านบน
+    const categoryCountsRaw = await Product.aggregate([
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 4 },
+    ]);
+    const categoryCounts = categoryCountsRaw.map(c => ({ name: c._id || 'ทั่วไป', count: c.count }));
+
+    res.render('index', { products, categories, categoryCounts, activeCategory: category || 'ทั้งหมด' });
   } catch (error) {
     console.error('Error loading products:', error);
     res.status(500).send('Server Error');
