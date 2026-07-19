@@ -117,12 +117,57 @@ router.get('/members', async (req, res) => {
   res.render('admin/members', { members });
 });
 
+router.get('/orders', async (req, res) => {
+  const ordersRaw = await Order.find()
+    .populate('user_id', 'username')
+    .populate('product_id', 'title')
+    .sort({ createdAt: -1 });
+
+  const orders = ordersRaw.map(o => ({
+    id: o._id.toString(),
+    username: o.user_id ? o.user_id.username : '(ไม่พบผู้ใช้)',
+    product_title: o.product_id ? o.product_id.title : '(ไม่พบสินค้า)',
+    price_paid: o.price_paid,
+    status: o.status,
+    delivered_content: o.delivered_content,
+    created_at: o.createdAt.toLocaleString('th-TH'),
+  }));
+
+  res.render('admin/orders', { orders });
+});
+
+router.get('/topups', async (req, res) => {
+  const topupsRaw = await Topup.find()
+    .populate('user_id', 'username')
+    .sort({ createdAt: -1 });
+
+  const topups = topupsRaw.map(t => ({
+    id: t._id.toString(),
+    username: t.user_id ? t.user_id.username : '(ไม่พบผู้ใช้)',
+    amount: t.amount,
+    reference: t.reference,
+    status: t.status,
+    created_at: t.createdAt.toLocaleString('th-TH'),
+  }));
+
+  res.render('admin/topups', { topups });
+});
+
 router.post('/topups/:id/approve', async (req, res) => {
   const topup = await Topup.findById(req.params.id);
   if (topup && topup.status === 'pending') {
     await Topup.findByIdAndUpdate(req.params.id, { status: 'approved' });
     await User.findByIdAndUpdate(topup.user_id, { $inc: { balance: topup.amount } });
     await logActivity(req.session.user.id, 'อนุมัติการเติมเงิน', topup._id.toString());
+  }
+  res.redirect('/admin/topups');
+});
+
+router.post('/topups/:id/reject', async (req, res) => {
+  const topup = await Topup.findById(req.params.id);
+  if (topup && topup.status === 'pending') {
+    await Topup.findByIdAndUpdate(req.params.id, { status: 'rejected' });
+    await logActivity(req.session.user.id, 'ปฏิเสธการเติมเงิน', topup._id.toString());
   }
   res.redirect('/admin/topups');
 });
