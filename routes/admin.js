@@ -34,7 +34,33 @@ router.get('/', async (req, res) => {
   ]);
   const salesToday = salesTodayRes.length > 0 ? salesTodayRes[0].total : 0;
 
-  res.render('admin/dashboard', { productCount, memberCount, pendingTopups, salesToday });
+  // ยอดขายรายวัน 14 วันล่าสุด (สำหรับกราฟแท่งในหน้าแดชบอร์ด)
+  const fourteenDaysAgo = new Date(today);
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13); // รวมวันนี้ด้วย = 14 วัน
+
+  const dailySalesRaw = await Order.aggregate([
+    { $match: { createdAt: { $gte: fourteenDaysAgo }, status: 'completed' } },
+    {
+      $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        total: { $sum: '$price_paid' }
+      }
+    }
+  ]);
+
+  // เติมวันที่ไม่มียอดขายให้เป็น 0 เรียงตามลำดับวันที่ต่อเนื่องกัน
+  const salesByDate = {};
+  dailySalesRaw.forEach(d => { salesByDate[d._id] = d.total; });
+
+  const dailySales = [];
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(fourteenDaysAgo);
+    d.setDate(d.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    dailySales.push({ date: key, total: salesByDate[key] || 0 });
+  }
+
+  res.render('admin/dashboard', { productCount, memberCount, pendingTopups, salesToday, dailySales });
 });
 
 // ---------- Products CRUD ----------
