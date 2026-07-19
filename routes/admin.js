@@ -69,6 +69,10 @@ router.get('/products', async (req, res) => {
   res.render('admin/products', { products });
 });
 
+router.get('/products/new', (req, res) => {
+  res.render('admin/product-form', { product: null, error: null });
+});
+
 router.post('/products/new', upload.single('image'), async (req, res) => {
   const { title, price, ...body } = req.body;
   const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
@@ -77,6 +81,14 @@ router.post('/products/new', upload.single('image'), async (req, res) => {
   });
   await logActivity(req.session.user.id, 'สร้างสินค้าใหม่', title);
   res.redirect(`/admin/products/${product._id}/stock`);
+});
+
+router.get('/products/:id/edit', async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) {
+    return res.status(404).render('error', { message: 'ไม่พบสินค้านี้' });
+  }
+  res.render('admin/product-form', { product, error: null });
 });
 
 router.post('/products/:id/edit', upload.single('image'), async (req, res) => {
@@ -89,6 +101,21 @@ router.post('/products/:id/edit', upload.single('image'), async (req, res) => {
     image_path: req.file ? `/uploads/${req.file.filename}` : product.image_path 
   });
   await logActivity(req.session.user.id, 'แก้ไขสินค้า', req.body.title);
+  res.redirect('/admin/products');
+});
+
+router.post('/products/:id/delete', async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) {
+    return res.redirect('/admin/products');
+  }
+  // ลบเฉพาะไอดีที่ยังไม่ได้ขาย (available) ส่วนที่ขายไปแล้วเก็บไว้เพื่อประวัติคำสั่งซื้อ
+  await StockItem.deleteMany({ product_id: product._id, status: 'available' });
+  if (product.image_path) {
+    fs.unlink(path.join(__dirname, '..', 'public', product.image_path), () => {});
+  }
+  await Product.findByIdAndDelete(req.params.id);
+  await logActivity(req.session.user.id, 'ลบสินค้า', product.title);
   res.redirect('/admin/products');
 });
 
