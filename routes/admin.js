@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { requireAdmin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { cloudinary } = require('../middleware/upload');
 
 // นำเข้า Models
 const User = require('../models/User');
@@ -93,9 +94,10 @@ router.post('/products/new', (req, res) => {
       if (!Number.isFinite(priceSatang) || priceSatang < 0) {
         throw new Error('กรุณากรอกราคาเป็นตัวเลขที่ถูกต้อง');
       }
-      const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
+      const imagePath = req.file ? req.file.path : null; // Cloudinary จะคืนเป็น URL แบบเต็มมาให้เลย
+      const imagePublicId = req.file ? req.file.filename : null; // filename = public_id บน Cloudinary
       const product = await Product.create({
-        ...body, title, price: priceSatang, image_path: imagePath,
+        ...body, title, price: priceSatang, image_path: imagePath, image_public_id: imagePublicId,
       });
       await logActivity(req.session.user.id, 'สร้างสินค้าใหม่', title);
       res.redirect(`/admin/products/${product._id}/stock`);
@@ -134,12 +136,13 @@ router.post('/products/:id/edit', (req, res) => {
       if (!Number.isFinite(priceSatang) || priceSatang < 0) {
         throw new Error('กรุณากรอกราคาเป็นตัวเลขที่ถูกต้อง');
       }
-      if (req.file && currentProduct.image_path) {
-        fs.unlink(path.join(__dirname, '..', 'public', currentProduct.image_path), () => {});
+      if (req.file && currentProduct.image_public_id) {
+        cloudinary.uploader.destroy(currentProduct.image_public_id).catch(() => {});
       }
       await Product.findByIdAndUpdate(req.params.id, {
         ...req.body, price: priceSatang,
-        image_path: req.file ? `/uploads/${req.file.filename}` : currentProduct.image_path,
+        image_path: req.file ? req.file.path : currentProduct.image_path,
+        image_public_id: req.file ? req.file.filename : currentProduct.image_public_id,
       });
       await logActivity(req.session.user.id, 'แก้ไขสินค้า', req.body.title);
       res.redirect('/admin/products');
@@ -161,8 +164,8 @@ router.post('/products/:id/delete', async (req, res) => {
     }
     // ลบเฉพาะไอดีที่ยังไม่ได้ขาย (available) ส่วนที่ขายไปแล้วเก็บไว้เพื่อประวัติคำสั่งซื้อ
     await StockItem.deleteMany({ product_id: product._id, status: 'available' });
-    if (product.image_path) {
-      fs.unlink(path.join(__dirname, '..', 'public', product.image_path), () => {});
+    if (product.image_public_id) {
+      cloudinary.uploader.destroy(product.image_public_id).catch(() => {});
     }
     await Product.findByIdAndDelete(req.params.id);
     await logActivity(req.session.user.id, 'ลบสินค้า', product.title);

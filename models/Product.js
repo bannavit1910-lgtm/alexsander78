@@ -23,6 +23,9 @@ const productSchema = new mongoose.Schema({
   image_path: { 
     type: String 
   },
+  image_public_id: {
+    type: String // ใช้สำหรับลบรูปเดิมออกจาก Cloudinary ตอนเปลี่ยน/ลบสินค้า
+  },
   stock: { 
     type: Number, 
     default: 1 
