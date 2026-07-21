@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { requireAdmin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
-const { cloudinary } = require('../middleware/upload');
+const { cloudinary, uploadBanner } = require('../middleware/upload');
 
 // นำเข้า Models
 const User = require('../models/User');
@@ -12,6 +12,7 @@ const Order = require('../models/Order');
 const StockItem = require('../models/StockItem');
 const Topup = require('../models/Topup');
 const AdminLog = require('../models/AdminLog');
+const CategoryBanner = require('../models/CategoryBanner');
 
 const router = express.Router();
 router.use(requireAdmin);
@@ -339,6 +340,88 @@ router.post('/topups/:id/reject', async (req, res) => {
 router.get('/logs', async (req, res) => {
   const logs = await AdminLog.find().populate('admin_id').sort({ createdAt: -1 }).limit(200);
   res.render('admin/logs', { logs });
+});
+
+// ---------- Category Banners (กล่อง FREEFIRE / ROV ฯลฯ หน้าแรก) ----------
+// เข้าถึงได้เฉพาะแอดมินเท่านั้น (router.use(requireAdmin) ด้านบนครอบคลุมทุก route ในไฟล์นี้)
+async function loadBannerRows() {
+  const categories = await Product.distinct('category');
+  const banners = await CategoryBanner.find();
+  const bannerMap = {};
+  banners.forEach(b => { bannerMap[b.category] = b; });
+
+  // รวมหมวดหมู่จากสินค้าจริง + หมวดหมู่ที่เคยตั้งค่าแบนเนอร์ไว้ก่อนหน้า (เผื่อสินค้าถูกลบไปหมดแล้วแต่ยังอยากเก็บค่าไว้)
+  const allNames = Array.from(new Set([...categories, ...banners.map(b => b.category)])).sort();
+  return allNames.map(name => ({ category: name, banner: bannerMap[name] || null }));
+}
+
+router.get('/banners', async (req, res) => {
+  const rows = await loadBannerRows();
+  res.render('admin/banners', { rows, error: null });
+});
+
+router.post('/banners/:category/update', (req, res) => {
+  uploadBanner.single('image')(req, res, async (uploadErr) => {
+    const categoryName = req.params.category; // Express decode ค่า param ให้อัตโนมัติแล้ว
+    if (uploadErr) {
+      const rows = await loadBannerRows();
+      return res.render('admin/banners', {
+        rows,
+        error: uploadErr.message || 'อัปโหลดรูปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+      });
+    }
+    try {
+      const existing = await CategoryBanner.findOne({ category: categoryName });
+      const title = (req.body.title || '').trim();
+      const subtitle = (req.body.subtitle || '').trim();
+
+      // ถ้าอัปโหลดรูปใหม่ ให้ลบรูปเดิมบน Cloudinary ทิ้งกันขยะสะสม
+      if (req.file && existing && existing.image_public_id) {
+        cloudinary.uploader.destroy(existing.image_public_id).catch(() => {});
+      }
+
+      const update = {
+        title: title || null,
+        subtitle: subtitle || null,
+        updated_by: req.session.user.id,
+        updatedAt: new Date(),
+      };
+      if (req.file) {
+        update.image_path = req.file.path; // Cloudinary คืน URL แบบเต็มมาให้เลย (เก็บถาวร ไม่หายตอน deploy ใหม่)
+        update.image_public_id = req.file.filename;
+      }
+
+      await CategoryBanner.findOneAndUpdate(
+        { category: categoryName },
+        { $set: update, $setOnInsert: { category: categoryName } },
+        { upsert: true, new: true }
+      );
+
+      await logActivity(req.session.user.id, 'แก้ไขแบนเนอร์หมวดหมู่', categoryName);
+      res.redirect('/admin/banners');
+    } catch (err) {
+      console.error('Update banner error:', err);
+      res.status(500).render('error', { message: 'บันทึกแบนเนอร์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+    }
+  });
+});
+
+router.post('/banners/:category/reset', async (req, res) => {
+  try {
+    const categoryName = req.params.category;
+    const existing = await CategoryBanner.findOne({ category: categoryName });
+    if (existing) {
+      if (existing.image_public_id) {
+        cloudinary.uploader.destroy(existing.image_public_id).catch(() => {});
+      }
+      await CategoryBanner.findByIdAndDelete(existing._id);
+      await logActivity(req.session.user.id, 'รีเซ็ตแบนเนอร์หมวดหมู่กลับเป็นค่าเริ่มต้น', categoryName);
+    }
+    res.redirect('/admin/banners');
+  } catch (err) {
+    console.error('Reset banner error:', err);
+    res.status(500).render('error', { message: 'รีเซ็ตแบนเนอร์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+  }
 });
 
 module.exports = router;

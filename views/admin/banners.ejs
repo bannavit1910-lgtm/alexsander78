@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>จัดการแบนเนอร์หมวดหมู่ — <%= storeName %></title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="admin-shell">
+  <%- include('../partials/admin-nav') %>
+  <div class="admin-main">
+    <div class="toolbar">
+      <h1>จัดการแบนเนอร์หมวดหมู่</h1>
+    </div>
+
+    <p style="color:var(--muted); font-size:13px; margin-top:-8px; margin-bottom:20px;">
+      ปรับข้อความและรูปภาพของกล่องแบนเนอร์หมวดหมู่ที่แสดงบนหน้าแรก (เช่น FREEFIRE, ROV) — ถ้าไม่ตั้งค่าไว้ ระบบจะแสดงชื่อหมวดหมู่และจำนวนสินค้าตามค่าเริ่มต้น
+    </p>
+
+    <% if (error) { %><div class="form-error"><%= error %></div><% } %>
+
+    <% if (rows.length === 0) { %>
+      <p class="empty-note">ยังไม่มีหมวดหมู่สินค้า — เพิ่มสินค้าอย่างน้อย 1 รายการก่อน หมวดหมู่จะปรากฏที่นี่ให้ตั้งค่าแบนเนอร์ได้</p>
+    <% } %>
+
+    <% rows.forEach(row => { %>
+      <div class="panel" style="max-width:560px; margin-bottom:18px;">
+        <h3 style="margin:0 0 12px;">หมวดหมู่: <%= row.category %></h3>
+
+        <% if (row.banner && row.banner.image_path) { %>
+          <img src="<%= row.banner.image_path %>" style="width:64px;height:64px;object-fit:cover;border-radius:8px;margin-bottom:12px;display:block;border:1px solid var(--line);">
+        <% } %>
+
+        <form method="POST" action="/admin/banners/<%= encodeURIComponent(row.category) %>/update" enctype="multipart/form-data">
+          <div class="field">
+            <label>ข้อความหัวข้อ (แสดงแทนชื่อหมวดหมู่ เช่น "FREEFIRE")</label>
+            <input type="text" name="title" placeholder="<%= row.category %>" value="<%= row.banner && row.banner.title ? row.banner.title : '' %>">
+          </div>
+          <div class="field">
+            <label>ข้อความรอง (แสดงแทนบรรทัด "มีสินค้า N รายการ พร้อมจำหน่าย")</label>
+            <input type="text" name="subtitle" placeholder="มีสินค้า ... รายการ พร้อมจำหน่าย" value="<%= row.banner && row.banner.subtitle ? row.banner.subtitle : '' %>">
+          </div>
+          <div class="field">
+            <label>รูปแบนเนอร์ <%= row.banner && row.banner.image_path ? '(อัปโหลดใหม่เพื่อแทนที่รูปเดิม)' : '(ถ้าไม่อัปโหลด จะแสดงเป็นแถบสีตามค่าเริ่มต้น)' %></label>
+            <input type="file" name="image" accept="image/png,image/jpeg,image/webp">
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-primary" type="submit">บันทึก</button>
+          </div>
+        </form>
+
+        <% if (row.banner) { %>
+          <form method="POST" action="/admin/banners/<%= encodeURIComponent(row.category) %>/reset" style="margin-top:10px;" onsubmit="return confirm('ล้างค่าที่ตั้งไว้และกลับไปใช้ค่าเริ่มต้นใช่หรือไม่?');">
+            <button class="btn btn-ghost" type="submit">รีเซ็ตกลับเป็นค่าเริ่มต้น</button>
+          </form>
+        <% } %>
+      </div>
+    <% }) %>
+  </div>
+</div>
+</body>
+</html>

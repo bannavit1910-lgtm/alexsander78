@@ -4,6 +4,7 @@ const Product = require('../models/Product');
 const User = require('../models/User');
 const Order = require('../models/Order');
 const StockItem = require('../models/StockItem');
+const CategoryBanner = require('../models/CategoryBanner');
 const { generateUniqueOrderCode } = require('../utils/orderCode');
 
 const router = express.Router();
@@ -29,7 +30,24 @@ router.get('/', async (req, res) => {
       { $sort: { count: -1 } },
       { $limit: 4 },
     ]);
-    const categoryCounts = categoryCountsRaw.map(c => ({ name: c._id || 'ทั่วไป', count: c.count }));
+
+    // ดึงข้อความ/รูปแบนเนอร์ที่แอดมินปรับแต่งเองมาทับค่าเริ่มต้น (ถ้าหมวดหมู่นั้นไม่มีการตั้งค่าไว้ จะใช้ค่าเริ่มต้นตามปกติ)
+    const categoryNames = categoryCountsRaw.map(c => c._id || 'ทั่วไป');
+    const bannerDocs = await CategoryBanner.find({ category: { $in: categoryNames } });
+    const bannerMap = {};
+    bannerDocs.forEach(b => { bannerMap[b.category] = b; });
+
+    const categoryCounts = categoryCountsRaw.map(c => {
+      const name = c._id || 'ทั่วไป';
+      const banner = bannerMap[name];
+      return {
+        name,
+        count: c.count,
+        title: banner && banner.title ? banner.title : name,
+        subtitle: banner && banner.subtitle ? banner.subtitle : `มีสินค้า ${c.count} รายการ พร้อมจำหน่าย`,
+        image: banner && banner.image_path ? banner.image_path : null,
+      };
+    });
 
     res.render('index', { products, categories, categoryCounts, activeCategory: category || 'ทั้งหมด' });
   } catch (error) {

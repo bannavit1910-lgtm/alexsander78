@@ -36,5 +36,22 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
+// อัปโหลดรูปแบนเนอร์หมวดหมู่ (เก็บแยกโฟลเดอร์บน Cloudinary เพื่อไม่ปนกับรูปสินค้า)
+const bannerStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'alexsander-store/banners',
+    allowed_formats: ['png', 'jpg', 'jpeg', 'webp'],
+    public_id: (req, file) => `banner_${Date.now()}_${Math.round(Math.random() * 1e6)}`,
+  },
+});
+
+const uploadBanner = multer({
+  storage: bannerStorage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+});
+
 module.exports = upload;
 module.exports.cloudinary = cloudinary;
+module.exports.uploadBanner = uploadBanner;

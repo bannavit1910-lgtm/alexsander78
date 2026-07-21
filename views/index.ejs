@@ -83,9 +83,15 @@
     <% const bannerColors = ['var(--rare)','var(--epic)','var(--legend)','var(--danger)']; %>
     <% categoryCounts.forEach((c, i) => { %>
       <a class="banner-item" href="/?category=<%= encodeURIComponent(c.name) %>">
-        <span class="banner-badge" style="background:<%= bannerColors[i % bannerColors.length] %>;"></span>
-        <span class="banner-text-main"><%= c.name %></span>
-        <span class="banner-text-sub">มีสินค้า <%= c.count %> รายการ พร้อมจำหน่าย</span>
+        <% if (c.image) { %>
+          <span class="banner-thumb"><img src="<%= c.image %>" alt="<%= c.title %>"></span>
+        <% } else { %>
+          <span class="banner-badge" style="background:<%= bannerColors[i % bannerColors.length] %>;"></span>
+        <% } %>
+        <span class="banner-text">
+          <span class="banner-text-main"><%= c.title %></span>
+          <span class="banner-text-sub"><%= c.subtitle %></span>
+        </span>
       </a>
     <% }) %>
   </div>
