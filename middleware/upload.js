@@ -52,6 +52,23 @@ const uploadBanner = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
+// อัปโหลดรูปฝั่ง hero หน้าแรก (แทนที่ภาพตัวละครเริ่มต้น) — ขนาดไม่บังคับ ปรับตามรูปจริงที่อัปโหลด แนะนำแนวนอนแบบปกยูทูป (1280x720)
+const heroStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'alexsander-store/hero',
+    allowed_formats: ['png', 'jpg', 'jpeg', 'webp'],
+    public_id: (req, file) => `hero_${Date.now()}_${Math.round(Math.random() * 1e6)}`,
+  },
+});
+
+const uploadHero = multer({
+  storage: heroStorage,
+  fileFilter,
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB (รูปแนวนอนความละเอียดสูงมักไฟล์ใหญ่กว่ารูปสินค้า)
+});
+
 module.exports = upload;
 module.exports.cloudinary = cloudinary;
 module.exports.uploadBanner = uploadBanner;
+module.exports.uploadHero = uploadHero;

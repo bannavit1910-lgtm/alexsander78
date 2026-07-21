@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>จัดการข้อความหน้าแรก — <%= storeName %></title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="admin-shell">
+  <%- include('../partials/admin-nav') %>
+  <div class="admin-main">
+    <div class="toolbar">
+      <h1>จัดการข้อความหน้าแรก</h1>
+    </div>
+
+    <p style="color:var(--muted); font-size:13px; margin-top:-8px; margin-bottom:20px;">
+      แก้ข้อความหัวข้อใหญ่และคำโปรยที่แสดงด้านบนสุดของหน้าแรก — กด Enter ในช่องหัวข้อเพื่อขึ้นบรรทัดใหม่ และล้อมคำด้วยเครื่องหมาย ** เพื่อไฮไลต์เป็นสีทอง เช่น <code>ระดับ **เทพ** ในที่เดียว</code><br>
+      อัปโหลดรูปเพื่อแทนที่ภาพตัวละครเริ่มต้นได้ — ไม่บังคับสัดส่วน ระบบจะปรับกรอบให้พอดีกับรูปที่อัปโหลดจริง แนะนำรูปแนวนอนขนาดประมาณปกยูทูป (1280x720) เพื่อความคมชัด
+    </p>
+
+    <% if (error) { %><div class="form-error"><%= error %></div><% } %>
+
+    <div class="panel" style="max-width:560px;">
+      <form method="POST" action="/admin/site-content/update" enctype="multipart/form-data">
+        <div class="field">
+          <label>ข้อความหัวข้อใหญ่</label>
+          <textarea name="hero_heading" rows="3" required><%= heroHeading %></textarea>
+        </div>
+        <div class="field">
+          <label>คำโปรยใต้หัวข้อ</label>
+          <textarea name="hero_subtitle" rows="2" required><%= heroSubtitle %></textarea>
+        </div>
+        <div class="field">
+          <label>รูปฝั่ง hero <%= heroImagePath ? '(อัปโหลดใหม่เพื่อแทนที่รูปเดิม)' : '(ถ้าไม่อัปโหลด จะแสดงภาพตัวละครเริ่มต้น)' %></label>
+          <% if (heroImagePath) { %>
+            <img src="<%= heroImagePath %>" style="max-width:220px;width:100%;height:auto;border-radius:10px;margin-bottom:8px;display:block;border:1px solid var(--line);">
+          <% } %>
+          <input type="file" name="hero_image" accept="image/png,image/jpeg,image/webp">
+        </div>
+        <button class="btn btn-primary" type="submit">บันทึก</button>
+      </form>
+
+      <% if (heroImagePath) { %>
+        <form method="POST" action="/admin/site-content/image/remove" style="margin-top:10px;" onsubmit="return confirm('ลบรูป hero และกลับไปแสดงภาพตัวละครเริ่มต้นใช่หรือไม่?');">
+          <button class="btn btn-ghost" type="submit">ลบรูป (กลับไปใช้ภาพตัวละครเริ่มต้น)</button>
+        </form>
+      <% } %>
+
+      <% if (hasCustomContent) { %>
+        <form method="POST" action="/admin/site-content/reset" style="margin-top:10px;" onsubmit="return confirm('ล้างข้อความและรูปที่ตั้งไว้ทั้งหมด แล้วกลับไปใช้ค่าเริ่มต้นใช่หรือไม่?');">
+          <button class="btn btn-ghost" type="submit">รีเซ็ตทั้งหมดกลับเป็นค่าเริ่มต้น</button>
+        </form>
+      <% } %>
+    </div>
+  </div>
+</div>
+</body>
+</html>

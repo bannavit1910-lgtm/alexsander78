@@ -5,9 +5,14 @@ const User = require('../models/User');
 const Order = require('../models/Order');
 const StockItem = require('../models/StockItem');
 const CategoryBanner = require('../models/CategoryBanner');
+const SiteContent = require('../models/SiteContent');
 const { generateUniqueOrderCode } = require('../utils/orderCode');
+const { renderHeroHeading, renderPlainText } = require('../utils/textFormat');
 
 const router = express.Router();
+
+// ค่าเริ่มต้นของข้อความ hero หน้าแรก (ใช้ตอนที่แอดมินยังไม่เคยเข้าไปตั้งค่าเอง)
+const DEFAULT_HERO_HEADING = 'ไอดีเกมและสกินคุณภาพ\nระดับ **เทพ** ในที่เดียว';
 
 router.get('/', async (req, res) => {
   try {
@@ -49,7 +54,21 @@ router.get('/', async (req, res) => {
       };
     });
 
-    res.render('index', { products, categories, categoryCounts, activeCategory: category || 'ทั้งหมด' });
+    // ดึงข้อความ hero หน้าแรกที่แอดมินตั้งค่าไว้ (ถ้าไม่เคยตั้งค่า ใช้ข้อความเริ่มต้น)
+    const siteContent = await SiteContent.findOne({ key: 'homepage' });
+    const heroHeadingRaw = siteContent && siteContent.hero_heading ? siteContent.hero_heading : DEFAULT_HERO_HEADING;
+    const defaultHeroSubtitle = `${req.app.locals.storeName} — เติมเงินง่าย ปลอดภัย ดูแลสมาชิกทุกระดับ`;
+    const heroSubtitleRaw = siteContent && siteContent.hero_subtitle ? siteContent.hero_subtitle : defaultHeroSubtitle;
+
+    res.render('index', {
+      products,
+      categories,
+      categoryCounts,
+      activeCategory: category || 'ทั้งหมด',
+      heroTitleHtml: renderHeroHeading(heroHeadingRaw),
+      heroSubtitleHtml: renderPlainText(heroSubtitleRaw),
+      heroImagePath: siteContent ? siteContent.hero_image_path : null,
+    });
   } catch (error) {
     console.error('Error loading products:', error);
     res.status(500).send('Server Error');

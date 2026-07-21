@@ -12,10 +12,15 @@
 
   <section class="hero">
     <div class="hero-text">
-      <h1>ไอดีเกมและสกินคุณภาพ<br>ระดับ <span>เทพ</span> ในที่เดียว</h1>
-      <p><%= storeName %> — เติมเงินง่าย ปลอดภัย ดูแลสมาชิกทุกระดับ</p>
+      <h1><%- heroTitleHtml %></h1>
+      <p><%- heroSubtitleHtml %></p>
     </div>
-    <div class="hero-visual">
+    <div class="hero-visual <%= heroImagePath ? 'has-image' : '' %>">
+      <% if (heroImagePath) { %>
+      <div class="hero-visual-image">
+        <img src="<%= heroImagePath %>" alt="<%= storeName %>">
+      </div>
+      <% } else { %>
       <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" class="hero-char">
         <defs>
           <radialGradient id="auraGlow" cx="50%" cy="42%" r="55%">
@@ -75,6 +80,7 @@
 
         <rect x="132" y="240" width="16" height="46" rx="6" transform="rotate(-8 140 263)" fill="url(#armorGrad)" stroke="var(--epic)" stroke-width="1.2"/>
       </svg>
+      <% } %>
     </div>
   </section>
 

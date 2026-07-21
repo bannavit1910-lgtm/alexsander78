@@ -86,7 +86,13 @@ nav.links a:hover{color:var(--text);}
 .hero h1 span{color:var(--legend);}
 .hero p{color:var(--muted); font-size:14px;}
 .hero-visual{width:280px; flex-shrink:0; display:flex; justify-content:center;}
+.hero-visual.has-image{width:100%; max-width:400px;}
 .hero-char{width:100%; max-width:280px; filter:drop-shadow(0 0 24px rgba(67,217,195,0.35));}
+.hero-visual-image{width:100%; border-radius:16px; overflow:hidden; border:1px solid var(--line); background:var(--panel-2); box-shadow:0 10px 34px rgba(0,0,0,0.4);}
+.hero-visual-image img{width:100%; height:auto; display:block;}
+@media(max-width:520px){
+  .hero-visual.has-image{max-width:100%;}
+}
 .hero-blade{animation:bladeGlow 2.6s ease-in-out infinite;}
 .floaty-particles circle{animation:particleDrift 5s ease-in-out infinite;}
 .floaty-particles circle:nth-child(2){animation-duration:6.5s; animation-delay:0.4s;}

@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { requireAdmin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
-const { cloudinary, uploadBanner } = require('../middleware/upload');
+const { cloudinary, uploadBanner, uploadHero } = require('../middleware/upload');
 
 // นำเข้า Models
 const User = require('../models/User');
@@ -13,12 +13,16 @@ const StockItem = require('../models/StockItem');
 const Topup = require('../models/Topup');
 const AdminLog = require('../models/AdminLog');
 const CategoryBanner = require('../models/CategoryBanner');
+const SiteContent = require('../models/SiteContent');
 
 const router = express.Router();
 router.use(requireAdmin);
 
 // จำนวนไอดีสูงสุดที่ยอมให้เติมสต็อกต่อสินค้า 1 รายการ (นับเฉพาะที่ยังพร้อมขาย)
 const MAX_STOCK_PER_PRODUCT = 500;
+
+// ค่าเริ่มต้นของข้อความ hero หน้าแรก (ใช้ pre-fill ฟอร์มตอนยังไม่เคยตั้งค่าเอง)
+const DEFAULT_HERO_HEADING = 'ไอดีเกมและสกินคุณภาพ\nระดับ **เทพ** ในที่เดียว';
 
 async function logActivity(adminId, action, detail) {
   await AdminLog.create({ admin_id: adminId, action, detail });
@@ -421,6 +425,116 @@ router.post('/banners/:category/reset', async (req, res) => {
   } catch (err) {
     console.error('Reset banner error:', err);
     res.status(500).render('error', { message: 'รีเซ็ตแบนเนอร์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+  }
+});
+
+// ---------- Homepage Hero Text & Image (หัวข้อ + คำโปรย + รูปฝั่งขวาด้านบนสุดของหน้าแรก) ----------
+router.get('/site-content', async (req, res) => {
+  const siteContent = await SiteContent.findOne({ key: 'homepage' });
+  const defaultSubtitle = `${req.app.locals.storeName} — เติมเงินง่าย ปลอดภัย ดูแลสมาชิกทุกระดับ`;
+  res.render('admin/site-content', {
+    heroHeading: siteContent && siteContent.hero_heading ? siteContent.hero_heading : DEFAULT_HERO_HEADING,
+    heroSubtitle: siteContent && siteContent.hero_subtitle ? siteContent.hero_subtitle : defaultSubtitle,
+    heroImagePath: siteContent ? siteContent.hero_image_path : null,
+    hasCustomContent: !!siteContent,
+    error: null,
+  });
+});
+
+router.post('/site-content/update', (req, res) => {
+  uploadHero.single('hero_image')(req, res, async (uploadErr) => {
+    const existing = await SiteContent.findOne({ key: 'homepage' });
+
+    if (uploadErr) {
+      const defaultSubtitle = `${req.app.locals.storeName} — เติมเงินง่าย ปลอดภัย ดูแลสมาชิกทุกระดับ`;
+      return res.status(400).render('admin/site-content', {
+        heroHeading: existing && existing.hero_heading ? existing.hero_heading : DEFAULT_HERO_HEADING,
+        heroSubtitle: existing && existing.hero_subtitle ? existing.hero_subtitle : defaultSubtitle,
+        heroImagePath: existing ? existing.hero_image_path : null,
+        hasCustomContent: !!existing,
+        error: uploadErr.message || 'อัปโหลดรูปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+      });
+    }
+
+    try {
+      const heroHeading = (req.body.hero_heading || '').trim();
+      const heroSubtitle = (req.body.hero_subtitle || '').trim();
+
+      if (!heroHeading || !heroSubtitle) {
+        const defaultSubtitle = `${req.app.locals.storeName} — เติมเงินง่าย ปลอดภัย ดูแลสมาชิกทุกระดับ`;
+        return res.status(400).render('admin/site-content', {
+          heroHeading: heroHeading || DEFAULT_HERO_HEADING,
+          heroSubtitle: heroSubtitle || defaultSubtitle,
+          heroImagePath: existing ? existing.hero_image_path : null,
+          hasCustomContent: true,
+          error: 'กรุณากรอกทั้งข้อความหัวข้อและคำโปรย',
+        });
+      }
+
+      // ถ้าอัปโหลดรูปใหม่ ให้ลบรูปเดิมบน Cloudinary ทิ้งกันขยะสะสม
+      if (req.file && existing && existing.hero_image_public_id) {
+        cloudinary.uploader.destroy(existing.hero_image_public_id).catch(() => {});
+      }
+
+      const update = {
+        hero_heading: heroHeading,
+        hero_subtitle: heroSubtitle,
+        updated_by: req.session.user.id,
+        updatedAt: new Date(),
+      };
+      if (req.file) {
+        update.hero_image_path = req.file.path; // Cloudinary คืน URL แบบเต็มมาให้เลย (เก็บถาวร ไม่หายตอน deploy ใหม่) ขนาดไม่ถูกบังคับครอป ปรับตามรูปจริงที่อัปโหลด
+        update.hero_image_public_id = req.file.filename;
+      }
+
+      await SiteContent.findOneAndUpdate(
+        { key: 'homepage' },
+        { $set: update, $setOnInsert: { key: 'homepage' } },
+        { upsert: true, new: true }
+      );
+
+      await logActivity(req.session.user.id, 'แก้ไขข้อความ/รูปหน้าแรก', 'hero heading/subtitle/image');
+      res.redirect('/admin/site-content');
+    } catch (err) {
+      console.error('Update site content error:', err);
+      res.status(500).render('error', { message: 'บันทึกข้อความหน้าแรกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+    }
+  });
+});
+
+router.post('/site-content/image/remove', async (req, res) => {
+  try {
+    const existing = await SiteContent.findOne({ key: 'homepage' });
+    if (existing && existing.hero_image_path) {
+      if (existing.hero_image_public_id) {
+        cloudinary.uploader.destroy(existing.hero_image_public_id).catch(() => {});
+      }
+      existing.hero_image_path = null;
+      existing.hero_image_public_id = null;
+      existing.updated_by = req.session.user.id;
+      existing.updatedAt = new Date();
+      await existing.save();
+      await logActivity(req.session.user.id, 'ลบรูปหน้าแรก', 'hero image');
+    }
+    res.redirect('/admin/site-content');
+  } catch (err) {
+    console.error('Remove hero image error:', err);
+    res.status(500).render('error', { message: 'ลบรูปหน้าแรกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+  }
+});
+
+router.post('/site-content/reset', async (req, res) => {
+  try {
+    const existing = await SiteContent.findOne({ key: 'homepage' });
+    if (existing && existing.hero_image_public_id) {
+      cloudinary.uploader.destroy(existing.hero_image_public_id).catch(() => {});
+    }
+    await SiteContent.deleteOne({ key: 'homepage' });
+    await logActivity(req.session.user.id, 'รีเซ็ตข้อความ/รูปหน้าแรกกลับเป็นค่าเริ่มต้น', 'hero heading/subtitle/image');
+    res.redirect('/admin/site-content');
+  } catch (err) {
+    console.error('Reset site content error:', err);
+    res.status(500).render('error', { message: 'รีเซ็ตข้อความหน้าแรกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
   }
 });
 
