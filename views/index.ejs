@@ -145,6 +145,7 @@
               data-unit-price="<%= unitPriceBaht.toFixed(2) %>"
               data-stock="<%= p.stock %>"
               data-product-desc="<%= p.description || '' %>"
+              data-product-image="<%= p.image_path || '' %>"
             >ซื้อสินค้านี้</button>
           <% } else { %>
             <a class="btn btn-ghost btn-block" href="/login">เข้าสู่ระบบเพื่อซื้อ</a>
@@ -159,6 +160,7 @@
 <div class="modal-overlay" id="buyModalOverlay">
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="buyModalTitle">
     <h3 id="buyModalTitle">ยืนยันการสั่งซื้อ</h3>
+    <img id="buyModalImage" class="modal-product-image" alt="" style="display:none;">
     <div class="modal-row">
       <span class="modal-label">สินค้า</span>
       <span class="modal-value" id="buyModalProductName">-</span>
@@ -217,6 +219,7 @@
   var form = document.getElementById('buyModalForm');
   var qtyInputHidden = document.getElementById('buyModalQtyInput');
   var nameEl = document.getElementById('buyModalProductName');
+  var imageEl = document.getElementById('buyModalImage');
   var descEl = document.getElementById('buyModalDesc');
   var qtyEl = document.getElementById('buyModalQty');
   var totalEl = document.getElementById('buyModalTotal');
@@ -230,8 +233,17 @@
     var productId = btn.dataset.productId;
     var productTitle = btn.dataset.productTitle;
     var productDesc = btn.dataset.productDesc || '';
+    var productImage = btn.dataset.productImage || '';
 
     nameEl.textContent = productTitle;
+    if (productImage) {
+      imageEl.src = productImage;
+      imageEl.alt = productTitle;
+      imageEl.style.display = 'block';
+    } else {
+      imageEl.removeAttribute('src');
+      imageEl.style.display = 'none';
+    }
     if (productDesc.trim()) {
       descEl.textContent = productDesc;
       descEl.style.display = 'block';
