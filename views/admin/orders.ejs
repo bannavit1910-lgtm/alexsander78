@@ -41,18 +41,18 @@
       <% if (orders.length === 0) { %>
         <p class="empty-note"><%= search ? 'ไม่พบคำสั่งซื้อที่ตรงกับรหัสนี้' : 'ยังไม่มีคำสั่งซื้อ' %></p>
       <% } else { %>
-        <table>
+        <table class="responsive-table">
           <thead><tr><th>รหัสคำสั่งซื้อ</th><th>ลูกค้า</th><th>สินค้า</th><th>ราคาที่จ่าย</th><th>สถานะ</th><th>ไอดีที่ส่งไป</th><th>วันที่</th></tr></thead>
           <tbody>
             <% orders.forEach(o => { %>
               <tr>
-                <td><code class="order-code-badge"><%= o.order_code %></code></td>
-                <td><%= o.username %></td>
-                <td><%= o.product_title %></td>
-                <td>฿<%= (o.price_paid / 100).toFixed(2) %></td>
-                <td><span class="tag <%= o.status %>"><%= o.status %></span></td>
-                <td style="font-family:monospace; font-size:12px;"><%= o.delivered_content || '-' %></td>
-                <td><%= o.created_at %></td>
+                <td data-label="รหัสคำสั่งซื้อ"><code class="order-code-badge"><%= o.order_code %></code></td>
+                <td data-label="ลูกค้า"><span class="cell-content"><%= o.username %></span></td>
+                <td data-label="สินค้า"><span class="cell-content"><%= o.product_title %></span></td>
+                <td data-label="ราคาที่จ่าย">฿<%= (o.price_paid / 100).toFixed(2) %></td>
+                <td data-label="สถานะ"><span class="tag <%= o.status %>"><%= o.status %></span></td>
+                <td data-label="ไอดีที่ส่งไป"><code class="delivered-id-code"><%= o.delivered_content || '-' %></code></td>
+                <td data-label="วันที่"><span class="cell-content"><%= o.created_at %></span></td>
               </tr>
             <% }) %>
           </tbody>

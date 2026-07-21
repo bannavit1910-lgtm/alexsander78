@@ -62,14 +62,14 @@
         <% if (topups.length === 0) { %>
           <p class="empty-note">ยังไม่มีประวัติการเติมเงิน</p>
         <% } else { %>
-          <table>
+          <table class="responsive-table">
             <thead><tr><th>วันที่</th><th>จำนวน</th><th>สถานะ</th></tr></thead>
             <tbody>
               <% topups.forEach(t => { %>
                 <tr>
-                  <td><%= t.created_at %></td>
-                  <td>฿<%= (t.amount / 100).toFixed(2) %></td>
-                  <td><span class="tag <%= t.status %>"><%= t.status %></span></td>
+                  <td data-label="วันที่"><%= t.created_at %></td>
+                  <td data-label="จำนวน">฿<%= (t.amount / 100).toFixed(2) %></td>
+                  <td data-label="สถานะ"><span class="tag <%= t.status %>"><%= t.status %></span></td>
                 </tr>
               <% }) %>
             </tbody>
@@ -82,19 +82,19 @@
         <% if (orders.length === 0) { %>
           <p class="empty-note">คุณยังไม่เคยซื้อสินค้า</p>
         <% } else { %>
-          <table>
+          <table class="responsive-table">
             <thead><tr><th>รหัสคำสั่งซื้อ</th><th>สินค้า</th><th>ราคาที่จ่าย</th><th>สถานะ</th><th>ไอดีที่ได้รับ</th></tr></thead>
             <tbody>
               <% orders.forEach(o => { %>
                 <tr>
-                  <td><code class="order-code-badge"><%= o.order_code %></code></td>
-                  <td><%= o.product_title %></td>
-                  <td>฿<%= (o.price_paid / 100).toFixed(2) %></td>
-                  <td><span class="tag <%= o.status %>"><%= o.status %></span></td>
-                  <td>
+                  <td data-label="รหัสคำสั่งซื้อ"><code class="order-code-badge"><%= o.order_code %></code></td>
+                  <td data-label="สินค้า"><span class="cell-content"><%= o.product_title %></span></td>
+                  <td data-label="ราคาที่จ่าย">฿<%= (o.price_paid / 100).toFixed(2) %></td>
+                  <td data-label="สถานะ"><span class="tag <%= o.status %>"><%= o.status %></span></td>
+                  <td data-label="ไอดีที่ได้รับ">
                     <% if (o.delivered_content) { %>
-                      <div style="display:flex; align-items:center; gap:6px;">
-                        <code style="font-size:12px; background:var(--panel-2); padding:4px 8px; border-radius:6px; word-break:break-all;"><%= o.delivered_content %></code>
+                      <div class="delivered-id-cell">
+                        <code class="delivered-id-code"><%= o.delivered_content %></code>
                         <button type="button" class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent); this.textContent='คัดลอกแล้ว'; setTimeout(()=>this.textContent='คัดลอก', 1500);">คัดลอก</button>
                       </div>
                     <% } else { %>

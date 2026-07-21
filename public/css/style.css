@@ -197,6 +197,12 @@ tr:last-child td{border-bottom:none;}
 .tag.pending{background:rgba(232,181,74,0.15); color:var(--legend);}
 .tag.rejected, .tag.cancelled{background:rgba(239,91,107,0.15); color:var(--danger);}
 
+.delivered-id-cell{display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end; min-width:0;}
+.delivered-id-code{
+  font-size:12px; background:var(--panel-2); padding:4px 8px; border-radius:6px;
+  word-break:break-all; overflow-wrap:anywhere; max-width:100%;
+}
+
 /* admin */
 .admin-shell{display:flex; gap:0; min-height:100vh;}
 .admin-side{width:220px; background:var(--panel); border-right:1px solid var(--line); padding:20px 0; flex-shrink:0;}
@@ -231,7 +237,32 @@ tr:last-child td{border-bottom:none;}
   .stat-cards{grid-template-columns:repeat(2,1fr);}
 }
 
-/* ตัวเลือกจำนวนสินค้า (+ / -) */
+/* ตารางบนมือถือ: พับแถวให้เป็นการ์ดแนวตั้งแทนการบีบตารางจนตัวหนังสือแตกบรรทัดทีละตัว */
+@media(max-width:640px){
+  table.responsive-table thead{display:none;}
+  table.responsive-table, table.responsive-table tbody,
+  table.responsive-table tr, table.responsive-table td{display:block; width:100%;}
+  table.responsive-table tr{
+    border:1px solid var(--line); border-radius:10px; padding:4px 14px; margin-bottom:12px; background:var(--panel-2);
+  }
+  table.responsive-table td{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    padding:10px 0; border-bottom:1px solid var(--line); text-align:right;
+  }
+  table.responsive-table td:last-child{border-bottom:none;}
+  table.responsive-table td::before{
+    content:attr(data-label); color:var(--muted); font-size:11px; font-weight:600;
+    text-align:left; flex-shrink:0;
+  }
+  table.responsive-table td .cell-content{min-width:0; overflow-wrap:break-word;}
+}
+
+/* เซฟตี้เน็ต: ตารางอื่นๆ ที่ยังไม่ได้แปลงเป็นการ์ด อย่างน้อยให้เลื่อนแนวนอนได้แทนการบีบตัวหนังสือ */
+@media(max-width:640px){
+  table:not(.responsive-table){ display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table:not(.responsive-table) td, table:not(.responsive-table) th{ white-space:nowrap; }
+}
+
 .qty-stepper{display:flex; align-items:stretch; gap:0; margin-bottom:10px; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--panel-2);}
 .qty-stepper .qty-btn{
   background:transparent; border:none; color:var(--text); font-size:16px; font-weight:700;
