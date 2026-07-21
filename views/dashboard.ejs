@@ -11,7 +11,14 @@
   <%- include('partials/nav') %>
 
   <div style="margin-top:28px;">
-    <% if (justBought) { %><div class="form-success">ซื้อสินค้าสำเร็จ! ตรวจสอบรายการได้ด้านล่าง</div><% } %>
+    <% if (justBought) { %>
+      <div class="form-success">
+        ซื้อสินค้าสำเร็จ! ตรวจสอบรายการได้ด้านล่าง
+        <% if (boughtOrderCode) { %>
+          — รหัสคำสั่งซื้อของคุณคือ <code class="order-code-badge"><%= boughtOrderCode %></code>
+        <% } %>
+      </div>
+    <% } %>
 
     <div class="status-strip">
       <div class="cell">
@@ -76,10 +83,11 @@
           <p class="empty-note">คุณยังไม่เคยซื้อสินค้า</p>
         <% } else { %>
           <table>
-            <thead><tr><th>สินค้า</th><th>ราคาที่จ่าย</th><th>สถานะ</th><th>ไอดีที่ได้รับ</th></tr></thead>
+            <thead><tr><th>รหัสคำสั่งซื้อ</th><th>สินค้า</th><th>ราคาที่จ่าย</th><th>สถานะ</th><th>ไอดีที่ได้รับ</th></tr></thead>
             <tbody>
               <% orders.forEach(o => { %>
                 <tr>
+                  <td><code class="order-code-badge"><%= o.order_code %></code></td>
                   <td><%= o.product_title %></td>
                   <td>฿<%= (o.price_paid / 100).toFixed(2) %></td>
                   <td><span class="tag <%= o.status %>"><%= o.status %></span></td>

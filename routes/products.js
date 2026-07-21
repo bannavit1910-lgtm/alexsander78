@@ -4,6 +4,7 @@ const Product = require('../models/Product');
 const User = require('../models/User');
 const Order = require('../models/Order');
 const StockItem = require('../models/StockItem');
+const { generateUniqueOrderCode } = require('../utils/orderCode');
 
 const router = express.Router();
 
@@ -87,11 +88,15 @@ router.post('/buy/:id', requireLogin, async (req, res) => {
     user.balance -= totalPrice;
     await user.save();
 
+    // สร้างรหัสคำสั่งซื้อ 1 รหัสต่อการซื้อ 1 ครั้ง (ใช้รหัสเดียวกันแม้จะซื้อหลายชิ้นในครั้งนี้)
+    const orderCode = await generateUniqueOrderCode();
+
     // สร้าง Order และอัปเดตสถานะ StockItem ทีละรายการ
     for (const item of items) {
       const newOrder = await Order.create({
         user_id: user._id,
         product_id: product._id,
+        order_code: orderCode,
         price_paid: unitPrice,
         status: 'completed',
         delivered_content: item.content
@@ -107,7 +112,7 @@ router.post('/buy/:id', requireLogin, async (req, res) => {
     product.stock = availableStock;
     await product.save();
 
-    res.redirect('/dashboard?bought=1');
+    res.redirect(`/dashboard?bought=1&order=${encodeURIComponent(orderCode)}`);
     
   } catch (error) {
     console.error('Buy error:', error);

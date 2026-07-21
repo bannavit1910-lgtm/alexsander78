@@ -11,15 +11,42 @@
   <%- include('../partials/admin-nav') %>
   <div class="admin-main">
     <div class="toolbar"><h1>คำสั่งซื้อทั้งหมด</h1></div>
+
+    <div class="panel" style="margin-bottom:20px;">
+      <form method="GET" action="/admin/orders" class="order-search-form">
+        <div class="order-search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+            <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <input
+            type="text"
+            name="search"
+            value="<%= search %>"
+            placeholder="ค้นหาด้วยรหัสคำสั่งซื้อ เช่น #fviohs32472fd"
+            autocomplete="off"
+          >
+        </div>
+        <button class="btn btn-primary" type="submit">ค้นหา</button>
+        <% if (search) { %>
+          <a class="btn btn-ghost" href="/admin/orders">ล้างการค้นหา</a>
+        <% } %>
+      </form>
+    </div>
+
     <div class="panel">
+      <% if (search) { %>
+        <p class="empty-note" style="padding:0 0 14px;">ผลการค้นหา "<%= search %>" — พบ <%= orders.length %> รายการ</p>
+      <% } %>
       <% if (orders.length === 0) { %>
-        <p class="empty-note">ยังไม่มีคำสั่งซื้อ</p>
+        <p class="empty-note"><%= search ? 'ไม่พบคำสั่งซื้อที่ตรงกับรหัสนี้' : 'ยังไม่มีคำสั่งซื้อ' %></p>
       <% } else { %>
         <table>
-          <thead><tr><th>ลูกค้า</th><th>สินค้า</th><th>ราคาที่จ่าย</th><th>สถานะ</th><th>ไอดีที่ส่งไป</th><th>วันที่</th></tr></thead>
+          <thead><tr><th>รหัสคำสั่งซื้อ</th><th>ลูกค้า</th><th>สินค้า</th><th>ราคาที่จ่าย</th><th>สถานะ</th><th>ไอดีที่ส่งไป</th><th>วันที่</th></tr></thead>
           <tbody>
             <% orders.forEach(o => { %>
               <tr>
+                <td><code class="order-code-badge"><%= o.order_code %></code></td>
                 <td><%= o.username %></td>
                 <td><%= o.product_title %></td>
                 <td>฿<%= (o.price_paid / 100).toFixed(2) %></td>

@@ -32,6 +32,7 @@ router.get('/dashboard', requireLogin, async (req, res) => {
       orders,
       topups,
       justBought: req.query.bought === '1',
+      boughtOrderCode: req.query.order || null,
     });
   } catch (error) {
     console.error('Dashboard Error:', error);

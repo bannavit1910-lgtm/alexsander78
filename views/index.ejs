@@ -144,6 +144,7 @@
               data-product-title="<%= p.title %>"
               data-unit-price="<%= unitPriceBaht.toFixed(2) %>"
               data-stock="<%= p.stock %>"
+              data-product-desc="<%= p.description || '' %>"
             >ซื้อสินค้านี้</button>
           <% } else { %>
             <a class="btn btn-ghost btn-block" href="/login">เข้าสู่ระบบเพื่อซื้อ</a>
@@ -162,6 +163,7 @@
       <span class="modal-label">สินค้า</span>
       <span class="modal-value" id="buyModalProductName">-</span>
     </div>
+    <div class="modal-desc" id="buyModalDesc" style="display:none;"></div>
     <div class="modal-row">
       <span class="modal-label">จำนวน</span>
       <span class="modal-value" id="buyModalQty">-</span>
@@ -215,6 +217,7 @@
   var form = document.getElementById('buyModalForm');
   var qtyInputHidden = document.getElementById('buyModalQtyInput');
   var nameEl = document.getElementById('buyModalProductName');
+  var descEl = document.getElementById('buyModalDesc');
   var qtyEl = document.getElementById('buyModalQty');
   var totalEl = document.getElementById('buyModalTotal');
   var cancelBtn = document.getElementById('buyModalCancel');
@@ -226,8 +229,16 @@
     var unitPrice = parseFloat(btn.dataset.unitPrice) || 0;
     var productId = btn.dataset.productId;
     var productTitle = btn.dataset.productTitle;
+    var productDesc = btn.dataset.productDesc || '';
 
     nameEl.textContent = productTitle;
+    if (productDesc.trim()) {
+      descEl.textContent = productDesc;
+      descEl.style.display = 'block';
+    } else {
+      descEl.textContent = '';
+      descEl.style.display = 'none';
+    }
     qtyEl.textContent = qty + ' ชิ้น';
     totalEl.textContent = '฿' + (unitPrice * qty).toFixed(2);
     qtyInputHidden.value = qty;

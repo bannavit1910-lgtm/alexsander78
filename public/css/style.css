@@ -263,3 +263,30 @@ tr:last-child td{border-bottom:none;}
 .modal-total{color:var(--rare); font-size:18px;}
 .modal-actions{display:flex; gap:10px; margin-top:20px;}
 .modal-actions .btn{flex:1;}
+
+/* ช่องค้นหาคำสั่งซื้อ (แอดมิน) */
+.order-search-form{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+.order-search-box{
+  flex:1; min-width:220px; display:flex; align-items:center; gap:8px;
+  background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:0 12px;
+}
+.order-search-box svg{color:var(--muted); flex-shrink:0;}
+.order-search-box input{
+  flex:1; background:transparent; border:none; outline:none; color:var(--text);
+  font-family:inherit; font-size:13px; padding:11px 0;
+}
+.order-search-box input::placeholder{color:var(--muted);}
+
+/* ป้ายรหัสคำสั่งซื้อ */
+.order-code-badge{
+  display:inline-block; font-family:monospace; font-size:12px; font-weight:600;
+  background:rgba(67,217,195,0.12); color:var(--rare); border:1px solid rgba(67,217,195,0.3);
+  padding:3px 9px; border-radius:6px; letter-spacing:0.3px;
+}
+
+/* คำอธิบายสินค้าในหน้าต่างยืนยันการซื้อ */
+.modal-desc{
+  background:var(--panel-2); border:1px solid var(--line); border-radius:8px;
+  padding:10px 12px; margin:4px 0 6px; font-size:12px; line-height:1.6; color:var(--muted);
+  white-space:pre-line; max-height:140px; overflow-y:auto;
+}

@@ -271,13 +271,24 @@ router.get('/members', async (req, res) => {
 });
 
 router.get('/orders', async (req, res) => {
-  const ordersRaw = await Order.find()
+  const search = (req.query.search || '').trim();
+  const filter = {};
+
+  if (search) {
+    // ให้ค้นหาได้ทั้งแบบมี # นำหน้าหรือไม่มีก็ได้ และไม่สนตัวพิมพ์เล็ก/ใหญ่
+    const normalized = search.startsWith('#') ? search.slice(1) : search;
+    const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    filter.order_code = new RegExp(escaped, 'i');
+  }
+
+  const ordersRaw = await Order.find(filter)
     .populate('user_id', 'username')
     .populate('product_id', 'title')
     .sort({ createdAt: -1 });
 
   const orders = ordersRaw.map(o => ({
     id: o._id.toString(),
+    order_code: o.order_code || '-',
     username: o.user_id ? o.user_id.username : '(ไม่พบผู้ใช้)',
     product_title: o.product_id ? o.product_id.title : '(ไม่พบสินค้า)',
     price_paid: o.price_paid,
@@ -286,7 +297,7 @@ router.get('/orders', async (req, res) => {
     created_at: o.createdAt.toLocaleString('th-TH'),
   }));
 
-  res.render('admin/orders', { orders });
+  res.render('admin/orders', { orders, search });
 });
 
 router.get('/topups', async (req, res) => {
